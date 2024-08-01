@@ -11,7 +11,7 @@ import PostModel from './models/Post.js';
 import { fileURLToPath } from 'url'
 import path from 'path'
 import dotenv from 'dotenv'
-// import { frontEndurl } from './helper.js';
+import { frontEndurl } from './helper.js';
 
 
 dotenv.config();
@@ -24,8 +24,8 @@ const uploadMiddleware = multer({ dest: 'uploads/' });
 const salt = bcrypt.genSaltSync(10);
 const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 
-app.use(cors({ credentials: true, }));
-// origin: frontEndurl
+app.use(cors({ credentials: true, origin: frontEndurl}));
+
 app.use(express.json());
 app.use(cookieParser());
 
