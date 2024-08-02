@@ -112,34 +112,31 @@ app.post('/logout', (req, res) => {
 
 
 
+
+
 app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
   try {
-      // Log token to debug
-      // console.log('Token from cookies:', req.cookies.token);
-
-      const { originalname, path } = req.file;
-      const parts = originalname.split('.');
-      const ext = parts[parts.length - 1];
-      const newPath = path + '.' + ext;
-    fs.renameSync(path, newPath);
-    
-    const { token } = req.cookies;
-    console.log(token);
-    
-
+      // console.log('Cookies:', req.cookies);
+      const token = req.cookies.token;
+      // console.log('Token:', token);
 
       if (!token) {
-          return res.status(401).send('JWT token is missing');
+          return res.status(401).json({ message: 'JWT token is missing' });
       }
 
       jwt.verify(token, secret, {}, async (err, info) => {
           if (err) {
               console.error('JWT Verification Error:', err);
-              return res.status(401).send('Unauthorized');
-          }
+              return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        const { originalname, path } = req.file;
+        const parts = originalname.split('.');
+        const ext = parts[parts.length - 1];
+        const newPath = path + '.' + ext;
+        fs.renameSync(path, newPath);
 
           const { title, summary, content } = req.body;
-
           const postDoc = await PostModel.create({
               title,
               summary,
@@ -152,9 +149,12 @@ app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
       });
   } catch (error) {
       console.error('Error creating post:', error);
-      res.status(500).send('Internal Server Error');
+      res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
+
 
 
 
