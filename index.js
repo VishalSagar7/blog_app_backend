@@ -115,15 +115,18 @@ app.post('/logout', (req, res) => {
 app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
   try {
       // Log token to debug
-      console.log('Token from cookies:', req.cookies.token);
+      // console.log('Token from cookies:', req.cookies.token);
 
       const { originalname, path } = req.file;
       const parts = originalname.split('.');
       const ext = parts[parts.length - 1];
       const newPath = path + '.' + ext;
-      fs.renameSync(path, newPath);
+    fs.renameSync(path, newPath);
+    
+    const { token } = req.cookies;
+    console.log(token);
+    
 
-      const token = req.cookies.token;
 
       if (!token) {
           return res.status(401).send('JWT token is missing');
