@@ -24,7 +24,7 @@ const uploadMiddleware = multer({ dest: 'uploads/' });
 const salt = bcrypt.genSaltSync(10);
 const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 
-app.use(cors({ credentials: true, origin: frontEndurl}));
+app.use(cors({ credentials: true, origin: 'http://localhost:5173'}));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -113,36 +113,37 @@ app.post('/logout', (req, res) => {
 
 
 app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
+  try {
+    const { originalname, path } = req.file;
+    const parts = originalname.split('.');
+    const ext = parts[parts.length - 1];
+    const newPath = path + '.' + ext;
+    fs.renameSync(path, newPath);
 
-  // console.log(req.file);
-  const { originalname, path } = req.file;
-  const parts = originalname.split('.');
-  const ext = parts[parts.length - 1];
-  const newPath = path + '.' + ext;
-  fs.renameSync(path, newPath);
+    const { token } = req.cookies;
 
-  const { token } = req.cookies;
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        console.error('JWT Verification Error:', err);
+        return res.status(401).send('Unauthorized');
+      }
 
-  jwt.verify(token, secret, {}, async (err, info) => {
-    if (err) throw err;
+      const { title, summary, content } = req.body;
 
-    const { title, summary, content } = req.body;
+      const postDoc = await PostModel.create({
+        title,
+        summary,
+        content,
+        cover: newPath,
+        author: info.id
+      });
 
-    // console.log(info);
-
-    const postDoc = await PostModel.create({
-      title,
-      summary,
-      content,
-      cover: newPath,
-      author: info.id
+      res.json(postDoc);
     });
-
-    res.json(postDoc);
-  });
-
-
-
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 
@@ -161,45 +162,43 @@ app.get('/post', async (req, res) => {
 })
 
 app.put('/post/:id', uploadMiddleware.single('file'), async (req, res) => {
-  
-  const postId = req.params.id;
-
   try {
-    // Verify JWT token
-    const { token } = req.cookies;
-    const info = jwt.verify(token, secret);
-
-    // Find the post by ID
-    const postDoc = await PostModel.findById(postId);
-
-    if (!postDoc) {
-      return res.status(404).json('Post not found');
-    }
-
-    // Update post fields
     const { title, summary, content } = req.body;
-    postDoc.title = title || postDoc.title;
-    postDoc.summary = summary || postDoc.summary;
-    postDoc.content = content || postDoc.content;
-    
-    // Handle file upload if there is a new file
+
     if (req.file) {
-      const { originalname, path: tempPath } = req.file;
-      const ext = path.extname(originalname);
-      const newPath = tempPath + ext;
-      fs.renameSync(tempPath, newPath);
-      postDoc.cover = newPath;
+      const { originalname, path } = req.file;
+      const parts = originalname.split('.');
+      const ext = parts[parts.length - 1];
+      const newPath = path + '.' + ext;
+      fs.renameSync(path, newPath);
+
+      const { token } = req.cookies;
+      jwt.verify(token, secret, {}, async (err, info) => {
+        if (err) {
+          console.error('JWT verification failed:', err);
+          return res.status(500).send('Authentication failed');
+        }
+
+        const postDoc = await PostModel.findByIdAndUpdate(
+          req.params.id,
+          { title, summary, content, cover: newPath, author: info.id },
+          { new: true }
+        );
+
+        res.json(postDoc);
+      });
+    } else {
+      const postDoc = await PostModel.findByIdAndUpdate(
+        req.params.id,
+        { title, summary, content },
+        { new: true }
+      );
+
+      res.json(postDoc);
     }
-
-    postDoc.author = info.id;
-
-    // Save updated post document
-    await postDoc.save();
-
-    res.json(postDoc);
   } catch (error) {
     console.error('Error updating post:', error);
-    res.status(500).json('Failed to update post');
+    res.status(500).send('Internal Server Error');
   }
 });
 
