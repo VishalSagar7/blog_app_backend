@@ -24,7 +24,7 @@ const uploadMiddleware = multer({ dest: 'uploads/' });
 const salt = bcrypt.genSaltSync(10);
 const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 
-app.use(cors({ credentials: true, origin: 'http://localhost:5173'}));
+app.use(cors({ credentials: true, origin: ['http://localhost:5173', 'https://mybblogapp.netlify.app']}));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -74,14 +74,21 @@ app.post('/login', async (req, res) => {
 
     if (passOk) {
       // Generate JWT token
-      jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
+      jwt.sign({ username, id: userDoc._id }, secret, { expiresIn: '1h' }, (err, token) => {
         if (err) {
           console.error('Token generation error:', err);
           return res.status(500).json({ message: 'Internal server error' });
         }
 
         // Set cookie and respond
-        res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
+        res.cookie('token', token, {
+          httpOnly: true, // Prevent client-side access to the token
+          secure: true, // Set to true to ensure cookies are only sent over HTTPS
+          sameSite: 'None', // Allow cross-origin requests in production
+          path: '/', // Cookie should be available across the entire site
+          maxAge: 3600000, // Cookie expiration (1 hour in milliseconds)
+        });      
+
         res.json({
           id: userDoc._id,
           username,
@@ -183,6 +190,7 @@ app.put('/post/:id', uploadMiddleware.single('file'), async (req, res) => {
       fs.renameSync(path, newPath);
 
       console.log(req.cookies.token);
+      
       
 
       const { token } = req.cookies;
