@@ -114,35 +114,42 @@ app.post('/logout', (req, res) => {
 
 app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
   try {
-    const { originalname, path } = req.file;
-    const parts = originalname.split('.');
-    const ext = parts[parts.length - 1];
-    const newPath = path + '.' + ext;
-    fs.renameSync(path, newPath);
+      // Log token to debug
+      console.log('Token from cookies:', req.cookies.token);
 
-    const { token } = req.cookies;
+      const { originalname, path } = req.file;
+      const parts = originalname.split('.');
+      const ext = parts[parts.length - 1];
+      const newPath = path + '.' + ext;
+      fs.renameSync(path, newPath);
 
-    jwt.verify(token, secret, {}, async (err, info) => {
-      if (err) {
-        console.error('JWT Verification Error:', err);
-        return res.status(401).send('Unauthorized');
+      const token = req.cookies.token;
+
+      if (!token) {
+          return res.status(401).send('JWT token is missing');
       }
 
-      const { title, summary, content } = req.body;
+      jwt.verify(token, secret, {}, async (err, info) => {
+          if (err) {
+              console.error('JWT Verification Error:', err);
+              return res.status(401).send('Unauthorized');
+          }
 
-      const postDoc = await PostModel.create({
-        title,
-        summary,
-        content,
-        cover: newPath,
-        author: info.id
+          const { title, summary, content } = req.body;
+
+          const postDoc = await PostModel.create({
+              title,
+              summary,
+              content,
+              cover: newPath,
+              author: info.id
+          });
+
+          res.json(postDoc);
       });
-
-      res.json(postDoc);
-    });
   } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).send('Internal Server Error');
+      console.error('Error creating post:', error);
+      res.status(500).send('Internal Server Error');
   }
 });
 
@@ -171,6 +178,9 @@ app.put('/post/:id', uploadMiddleware.single('file'), async (req, res) => {
       const ext = parts[parts.length - 1];
       const newPath = path + '.' + ext;
       fs.renameSync(path, newPath);
+
+      console.log(req.cookies.token);
+      
 
       const { token } = req.cookies;
       jwt.verify(token, secret, {}, async (err, info) => {
