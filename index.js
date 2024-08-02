@@ -116,9 +116,9 @@ app.post('/logout', (req, res) => {
 
 app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
   try {
-      // console.log('Cookies:', req.cookies);
+      console.log('Cookies:', req.cookies);
       const token = req.cookies.token;
-      // console.log('Token:', token);
+      console.log('Token:', token);
 
       if (!token) {
           return res.status(401).json({ message: 'JWT token is missing' });
@@ -246,7 +246,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(4000, () => {
-      console.log('Server is running on port 4000');
+      console.log(`server is running `);
     });
   })
   .catch(err => {
