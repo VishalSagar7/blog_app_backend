@@ -12,11 +12,19 @@ import { fileURLToPath } from 'url'
 import path from 'path'
 import dotenv from 'dotenv'
 import { frontEndurl } from './helper.js';
+import {v2 as cloudinary} from 'cloudinary'
+
 
 
 dotenv.config();
 const port = process.env.port || 4001;
 const origin = process.env.ORIGIN
+
+cloudinary.config({
+  cloud_name: 'deaatlwug', // replace with your Cloudinary cloud name
+  api_key: '532323265239733',       // replace with your Cloudinary API key
+  api_secret: 'QYlJO6QB6gd56j9u4luuz33HSuI'  // replace with your Cloudinary API secret
+});
 
 const app = express();
 const uploadMiddleware = multer({ dest: 'uploads/' });
@@ -32,6 +40,8 @@ app.use(cookieParser());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/Uploads', express.static(path.join(__dirname, 'Uploads')));
+
+const upload = multer({ dest: 'uploads/' }); // Temporary storage
 
 
 app.post('/register', async (req, res) => {
@@ -121,11 +131,11 @@ app.post('/logout', (req, res) => {
 
 
 
-app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
+app.post('/post', upload.single('image'), async (req, res) => {
   try {
-      console.log('Cookies:', req.cookies);
+      // console.log('Cookies:', req.cookies);
       const token = req.cookies.token;
-      console.log('Token:', token);
+      // console.log('Token:', token);
 
       if (!token) {
           return res.status(401).json({ message: 'JWT token is missing' });
@@ -135,24 +145,30 @@ app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
           if (err) {
               console.error('JWT Verification Error:', err);
               return res.status(401).json({ message: 'Unauthorized' });
-        }
+          }
 
-        const { originalname, path } = req.file;
-        const parts = originalname.split('.');
-        const ext = parts[parts.length - 1];
-        const newPath = path + '.' + ext;
-        fs.renameSync(path, newPath);
+          const { path } = req.file;
+          
+          // Upload the image to Cloudinary
+          const result = cloudinary.uploader.upload(path, async (error, result) => {
+              if (error) {
+                  console.error('Cloudinary Upload Error:', error);
+                  return res.status(500).json({ message: 'Image upload failed' });
+              }
 
-          const { title, summary, content } = req.body;
-          const postDoc = await PostModel.create({
-              title,
-              summary,
-              content,
-              cover: newPath,
-              author: info.id
+              const { title, summary, content } = req.body;
+              
+              // Create a new post document in your database
+              const postDoc = await PostModel.create({
+                  title,
+                  summary,
+                  content,
+                  cover: result.secure_url, // Use the secure URL from Cloudinary
+                  author: info.id
+              });
+
+              res.json(postDoc);
           });
-
-          res.json(postDoc);
       });
   } catch (error) {
       console.error('Error creating post:', error);
